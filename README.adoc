@@ -1,0 +1,218 @@
+= uProtocol Client Android Kotlin Library
+:toc:
+:toclevels: 4
+:sectnums:
+:source-highlighter: coderay
+
+== Overview
+The following is the uProtocol client library that implements uTransport, RpcClient and RpcService defined in https://github.com/eclipse-uprotocol/up-kotlin[uProtocol Kotlin Library] using Android Binder. It also includes some commonly used utilities for error handling.
+
+== Getting Started
+=== Importing the Library
+If you are using Gradle, add the following to your _build.gradle_ file's dependencies:
+
+[,groovy]
+----
+android {
+    dependencies {
+        implementation 'org.eclipse.uprotocol:up-client-android-kotlin::1.5.+'
+    }
+}
+----
+
+=== Configuring the Library
+`UPClient`, by default, establishes a connection to uBus service that is integrated into the system as part of `"org.eclipse.uprotocol.core"` package.
+
+If a service that implements `IUBus.aidl` interface is integrated in a different package, you should configure the library by specifying that component or just that package.
+
+.Example: config.xml
+[, xml]
+----
+<resources>
+    <string name="config_UBusService" translatable="false">com.example.core/.UBusService</string>
+</resources>
+----
+
+=== Using the Library
+==== Connecting to uTransport
+Before using the `UPClient` APIs, a uE must create an instance and connect to uBus.
+
+First create an instance with one of static factory methods:
+
+[,kotlin]
+----
+fun create(context: Context, entity: UEntity? = null, dispatcher: CoroutineDispatcher = Dispatchers.Main, listener: ServiceLifecycleListener): UPClient
+
+----
+
+[%hardbreaks]
+`context` is an application context.
+`entity` is information about uE containing its name and major version (MUST match the meta data in the manifest).
+`dispatcher` is the coroutine dispatcher that determines what thread or threads the corresponding coroutine uses for its execution, default as Main dispatcher.
+`listener` is a listener for monitoring uBus lifecycle.
+
+NOTE: Every Android uE MUST declare its name and major version in the manifest.
+
+For the example below you don't need to call `create(...)` factory method with uEntity explicitly.
+
+.Example 1: Single Android uE
+[,xml]
+----
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.eclipse.uprotocol.example.client">
+    ...
+    <application android:label="@string/app_name" ...>
+        <meta-data
+            android:name="uprotocol.entity.name"
+            android:value="example.client" />
+        <meta-data
+            android:name="uprotocol.entity.version"
+            android:value="1" />
+
+        <activity
+            android:name=".ExampleActivity">
+        </activity>
+    </application>
+</manifest>
+----
+
+For the next example you should create a separate instance of `UPClient` for each uE using `create()` factory method with uEntity explicitly.
+
+.Example 2: Several Android uEs bundled together in APK
+[,xml]
+----
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.eclipse.uprotocol.example.service.lighting">
+    ...
+    <application android:label="@string/app_name">
+        <service
+            android:name=".ExteriorLightingService"
+            ... >
+            <meta-data
+                android:name="uprotocol.entity.name"
+                android:value="body.lighting.exterior" />
+            <meta-data
+                android:name="uprotocol.entity.version"
+                android:value="1" />
+        </service>
+
+        <service
+            android:name=".InteriorLightingService"
+            ... >
+            <meta-data
+                android:name="uprotocol.entity.name"
+                android:value="body.lighting.interior" />
+            <meta-data
+                android:name="uprotocol.entity.version"
+                android:value="1" />
+        </service>
+    </application>
+</manifest>
+----
+
+Then connect to uBus using a suspend API below:
+
+[,kotlin]
+----
+suspend fun connect(): UStatus
+----
+
+When you are done with the `UPClient` you should disconnect from uBus:
+
+[,kotlin]
+----
+suspend fun disconnect(): UStatus
+----
+
+You cannot use other methods until the `UPClient` is connected. When this happens the `CompletionStage<UStatus>` returned by connect() will be completed and you also will receive the `onLifecycleChanged(..., true)` callback on your service lifecycle listener. You may query the connected status using these methods:
+
+[,kotlin]
+----
+fun isDisconnected(): Boolean
+fun isConnecting(): Boolean
+fun isConnected(): Boolean
+----
+
+==== Sending a UMessage
+For both, publisher/subscriber or observer (notification) design patterns, a uE should use the `UPClient` to send messages to consumers using any method below:
+
+[,kotlin]
+----
+fun send(message: UMessage): UStatus
+----
+
+==== Registering a UListener
+In order to start receiving messages, a consumer should register a listener for a topic:
+
+[,kotlin]
+----
+fun registerListener(topic: UUri, listener: UListener): UStatus
+----
+*For the publisher/subscriber design pattern*, the precondition for a callback is that the uE needs to subscribe to the topic AND register the listener.
+
+Given the precondition, the callback will be triggered in any of the following cases:
+
+. As soon as listener is registered if there is already a sent message for that topic that is in cache, OR
+. Whenever the producer sends a new message for that topic
+
+*For the notification design pattern*, the only precondition is that uE needs to register the listener.
+Once the listener is registered the callback will be triggered whenever the notification message is sent by the producer.
+
+A consumer can use the same listener for multiple topics, or register different listeners to the same topic.
+
+To unregister a listener from receiving topic messages:
+
+[,kotlin]
+----
+fun unregisterListener(topic: UUri, listener: UListener): UStatus
+----
+
+To unregister a listener from all topics:
+
+[,java]
+----
+fun unregisterListener(listener: UListener): UStatus
+----
+
+==== Registering a URpcListener
+A uE with a service role should register a listener for a particular method URI to be notified when request messages are sent against said method.
+
+NOTE: Only one listener is allowed to be registered per a method URI.
+
+[,kotlin]
+----
+fun registerRpcListener(method: UUri, listener: URpcListener): UStatus
+----
+
+To stop processing request messages for a specific method URI or all of the, a service uE should unregister the listener:
+
+[,kotlin]
+----
+fun unregisterRpcListener(method: UUri, listener: URpcListener): UStatus
+fun unregisterRpcListener(listener: URpcListener): UStatus
+----
+
+==== Invoking an RPC Method
+Code generators for uProtocol services defined in proto files primarily utilize the following method. However, clients also have the option to directly use it for invoking RPC methods.
+
+[,kotlin]
+fun invokeMethod(UUri methodUri, UPayload requestPayload, CallOptions options): Flow<UMessage>
+----
+
+=== Building the Library
+The Android Gradle Plugin provides several standard tasks that are commonly used in Android projects. To view the complete list, you can use the following command:
+
+[,bash]
+----
+gradlew tasks
+----
+
+The following outlines some of the standard tasks employed in the development process:
+
+. *clean*: Deletes the build directory.
+. *build*: Assembles and tests this project.
+. *lintAnalyzeRelease*: Run lint analysis on the release variant.
+. *koverTestReport*: Generate Kover coverage reports.
+. *connectedDebugAndroidTest*: Installs and runs the tests for debug on connected devices.
+. *publishReleasePublicationToMavenLocal*:  Publishes Maven publication 'release' to the local Maven repository.
+

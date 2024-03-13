@@ -1,0 +1,40 @@
+#
+# Copyright (c) 2024 General Motors GTO LLC.
+#
+# This program and the accompanying materials are made available under the
+# terms of the Eclipse Public License v. 2.0 which is available at
+# http://www.eclipse.org/legal/epl-2.0.
+#
+# SPDX-FileType: DOCUMENTATION
+# SPDX-FileCopyrightText: 2023 General Motors GTO LLC
+# SPDX-License-Identifier: Apache-2.0
+#
+[versions]
+android = "8.2.+"
+kotlin = "1.9.20"
+androidx-appcompat = "1.4.2"
+androidx-espresso = "3.5.1"
+androidx-junit = "1.1.5"
+junit = "4.13.2"
+mockk = "1.13.9"
+robolectric = "4.7.3"
+up-kotlin = "1.5.6-SNAPSHOT"
+coroutine = "1.8.0"
+kover = "0.7.5"
+
+[libraries]
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
+androidx-espresso = { module = "androidx.test.espresso:espresso-core", version.ref = "androidx-espresso"}
+androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-junit"}
+junit = { module = "junit:junit", version.ref = "junit"}
+mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk"}
+mockk = { module = "io.mockk:mockk", version.ref = "mockk"}
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric"}
+up-kotlin = { module = "org.eclipse.uprotocol:up-kotlin", version.ref = "up-kotlin" }
+coroutine = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutine" }
+coroutine-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutine" }
+
+[plugins]
+android-library = { id = "com.android.library", version.ref = "android" }
+kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
