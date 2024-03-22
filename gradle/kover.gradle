@@ -1,0 +1,46 @@
+/*
+ * Copyright (c) 2024 General Motors GTO LLC.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0.
+ *
+ * SPDX-FileType: DOCUMENTATION
+ * SPDX-FileCopyrightText: 2024 General Motors GTO LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */
+apply plugin: 'org.jetbrains.kotlinx.kover'
+
+koverReport {
+    // common filters for all default Kover merged tasks
+    filters {
+        // common class filter
+        excludes {
+            // class exclusion rules
+            classes(
+                    'org.eclipse.uprotocol.client.BuildConfig', // exclude BuildConfig class
+                    'org.eclipse.uprotocol.core.ubus.IUBus**', // exclude AIDL classes
+                    'org.eclipse.uprotocol.core.ubus.IUListener**', // exclude AIDL classes
+                    '**$$inlined$**'   // exclude all inlined classes from dependencies
+            )
+            annotatedBy("*ExcludeFromGeneratedCoverageReport*")
+        }
+    }
+
+    defaults{
+        xml{
+            setReportFile(layout.buildDirectory.file("reports/coverage/report.xml"))
+        }
+        html{
+            setReportDir(layout.buildDirectory.dir("reports/coverage/html"))
+        }
+        mergeWith("debug")
+    }
+}
+
+tasks.register('koverTestReport') {
+    dependsOn 'testDebugUnitTest'
+    group = 'Reporting'
+    description = 'Generate Kover coverage html and xml reports.'
+    finalizedBy('koverHtmlReport', 'koverXmlReport')
+}
